@@ -74,6 +74,7 @@ This mix keeps control-plane logic simple, while the data plane (the actual vide
 
 ## 5. Architecture Diagram
 
+The diagram includes both the current Phase 1 implementation and components planned for later phases.
 ```mermaid
 flowchart TB
     subgraph Viewers["Viewers (clients + P2P peers)"]
