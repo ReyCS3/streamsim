@@ -2,10 +2,10 @@
 
 | Team Member | Contributions |
 | --- | --- |
-| Member 1 | |
-| Member 2 | |
-| Member 3 | |
-| Member 4 | |
-| Member 5 | |
-| Member 6 | |
-| Killian Nguyen |  |
+| Rey Sioson | Team Lead |
+| Reuben Cherian | Wrote README|
+| Jacob Sabraw | Architecture Diagram|
+| Viktor Silaiev |Architecture Diagram |
+| Ariel Winkler | Architecture Diagram|
+| Jayden Woodall | Video Demonstration |
+| Killian Nguyen | Wrote README |
