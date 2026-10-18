@@ -1,0 +1,12 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Runtime data and logs
+logs/
+data/
+
+# OS metadata
+.DS_Store
+Thumbs.db

@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>StreamSim: A Distributed Video-Streaming System</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+  </script>
+  <style>
+    @page {
+      size: letter;
+      margin: 18mm 16mm;
+    }
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.55;
+      color: #1a202c;
+      background: #ffffff;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    @media print {
+      body {
+        padding: 0;
+        max-width: 100%;
+        color: #000;
+      }
+      a {
+        text-decoration: none;
+        color: #000;
+      }
+      .no-print {
+        display: none !important;
+      }
+      h1, h2, h3 {
+        page-break-after: avoid;
+      }
+      pre, blockquote, table, figure {
+        page-break-inside: avoid;
+      }
+      .page-break {
+        page-break-before: always;
+      }
+    }
+    /* Action Bar (Only in browser) */
+    .action-bar {
+      background: #f7fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 18px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .print-btn {
+      background: #2b6cb0;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    .print-btn:hover {
+      background: #2c5282;
+    }
+    /* Typography */
+    h1 {
+      font-size: 22pt;
+      font-weight: 800;
+      color: #1a365d;
+      margin-top: 0;
+      margin-bottom: 6px;
+      border-bottom: 2px solid #2b6cb0;
+      padding-bottom: 8px;
+    }
+    .subtitle {
+      font-size: 13pt;
+      font-weight: 600;
+      color: #4a5568;
+      margin-top: 0;
+      margin-bottom: 14px;
+    }
+    .meta-box {
+      background: #ebf8ff;
+      border-left: 4px solid #3182ce;
+      padding: 10px 14px;
+      margin-bottom: 24px;
+      font-size: 9.5pt;
+      border-radius: 0 6px 6px 0;
+    }
+    .meta-box p {
+      margin: 3px 0;
+    }
+    h2 {
+      font-size: 14pt;
+      font-weight: 700;
+      color: #2b6cb0;
+      margin-top: 24px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 5px;
+    }
+    h3 {
+      font-size: 11.5pt;
+      font-weight: 700;
+      color: #2d3748;
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
+    p, li {
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+    ul, ol {
+      padding-left: 22px;
+      margin-bottom: 12px;
+    }
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 20px 0;
+      font-size: 9pt;
+    }
+    th, td {
+      border: 1px solid #cbd5e0;
+      padding: 7px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background-color: #f7fafc;
+      color: #2d3748;
+      font-weight: 700;
+    }
+    tr:nth-child(even) td {
+      background-color: #fafbfc;
+    }
+    /* Code blocks */
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 8.5pt;
+      background: #edf2f7;
+      padding: 2px 5px;
+      border-radius: 4px;
+      color: #805ad5;
+    }
+    pre {
+      background: #1a202c;
+      color: #f7fafc;
+      padding: 12px 14px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 8pt;
+      line-height: 1.45;
+      margin: 12px 0 16px 0;
+      border: 1px solid #2d3748;
+    }
+    pre code {
+      background: transparent;
+      padding: 0;
+      color: inherit;
+      font-size: inherit;
+    }
+    pre.log-trace {
+      background: #0d1117;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      font-size: 7.5pt;
+      line-height: 1.35;
+    }
+    .mermaid {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 14px;
+      margin: 16px 0;
+      text-align: center;
+    }
+    .screenshot-placeholder {
+      border: 2px dashed #cbd5e0;
+      background: #f7fafc;
+      padding: 16px;
+      text-align: center;
+      color: #718096;
+      border-radius: 6px;
+      margin: 10px 0 16px 0;
+      font-size: 9pt;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="action-bar no-print">
+    <div>
+      <strong>Print-Ready PDF Preview:</strong> Click button to export as a formatted PDF.
+    </div>
+    <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+  </div>
+
+  <h1>StreamSim: A Distributed Video-Streaming System</h1>
+  <div class="subtitle">Architecture, System Model &amp; Implementation</div>
+
+  <div class="meta-box">
+    <p><strong>Course:</strong> Distributed Systems &nbsp;|&nbsp; <strong>Milestone:</strong> 2 (Communication Mechanisms)</p>
+    <p><strong>Team Members:</strong> Rey Sioson, Reuben Cherian, Jacob Sabraw, Viktor Silaiev, Ariel Winkler, Jayden Woodall, Killian Nguyen</p>
+  </div>
+
+  <h2>1. Purpose</h2>
+  <p>StreamSim is a Netflix-like video-streaming simulation. Viewers browse and search a catalog, then stream a title. Videos are split into chunks. Those chunks are replicated across storage nodes and also shared between viewers (P2P). Metadata lives in its own replicated service coordinated by an elected leader. A publish-subscribe broker notifies viewers about new releases and recommendations. The goal is to keep media <strong>available, fast to deliver, and consistent</strong> while nodes, peers, and links fail.</p>
+
+  <h2>2. Main Services / Components</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Component</th>
+        <th>Responsibility</th>
+        <th>File</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Viewer client</strong></td>
+        <td>Browse, search, play. Fetches chunks (peers first, then servers) and verifies SHA-256 hashes. Can stay online as a P2P seeder and subscribe to notifications.</td>
+        <td><code>client.py</code></td>
+      </tr>
+      <tr>
+        <td><strong>API gateway</strong></td>
+        <td>Single entry point for clients. Routes reads to any metadata replica. Builds playback manifests ordered by node health. Publishes <code>plays</code> events. Re-replicates chunks off nodes that stay down.</td>
+        <td><code>gateway.py</code></td>
+      </tr>
+      <tr>
+        <td><strong>Metadata replicas</strong></td>
+        <td>Titles, genres, search, chunk manifests. Three replicas; the elected leader serializes all writes and multicasts them to the group.</td>
+        <td><code>metadata.py</code> &times;3</td>
+      </tr>
+      <tr>
+        <td><strong>Chunk storage nodes</strong></td>
+        <td>Store and serve video chunks from local disk</td>
+        <td><code>chunk_node.py</code> &times;3</td>
+      </tr>
+      <tr>
+        <td><strong>Ingest service</strong></td>
+        <td>Splits uploaded videos into chunks, replicates them, registers the title with the leader, publishes <code>new-releases</code></td>
+        <td><code>ingest.py</code></td>
+      </tr>
+      <tr>
+        <td><strong>Pub-sub broker</strong></td>
+        <td>Topics <code>new-releases</code>, <code>plays</code>, <code>recs.&lt;user&gt;</code>. Pushes each published message to all of the topic's subscribers.</td>
+        <td><code>broker.py</code></td>
+      </tr>
+      <tr>
+        <td><strong>Recommendation service</strong></td>
+        <td>Subscribes to <code>plays</code> and <code>new-releases</code>; publishes personalized suggestions to <code>recs.&lt;user&gt;</code></td>
+        <td><code>recommender.py</code></td>
+      </tr>
+      <tr>
+        <td><strong>Peer tracker</strong></td>
+        <td>Tracks which peers hold which chunks, so clients can fetch from peers</td>
+        <td><code>tracker.py</code></td>
+      </tr>
+      <tr>
+        <td><strong>Coordination</strong></td>
+        <td>Bully leader election among metadata replicas; the leader is the single writer for the shared catalog</td>
+        <td>inside <code>metadata.py</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Communication uses <strong>TCP sockets</strong> with newline-delimited JSON messages (<code>type</code>, <code>req_id</code>, <code>sender</code>, <code>payload</code>).</p>
+
+  <h2>3. Clients, Servers, Peers, Shared Resources</h2>
+  <ul>
+    <li><strong>Clients:</strong>
+      <ul>
+        <li>Viewer apps are clients.</li>
+        <li>The gateway, ingest service, and recommender are clients of the metadata replicas.</li>
+        <li>Ingest and the gateway are also clients of the storage nodes and the broker.</li>
+      </ul>
+    </li>
+    <li><strong>Servers:</strong> the gateway, metadata replicas, chunk storage nodes, pub-sub broker, and peer tracker.</li>
+    <li><strong>Peers:</strong>
+      <ul>
+        <li><em>Viewer peers:</em> viewers who already hold chunks upload them to other viewers (P2P distribution).</li>
+        <li><em>Storage peers:</em> chunk nodes have identical roles and hold replicas of each other's data.</li>
+        <li><em>Metadata replicas:</em> peers that elect one leader among themselves.</li>
+      </ul>
+    </li>
+    <li><strong>Shared resources:</strong>
+      <ul>
+        <li>Video chunks, shared by all viewers and replicated across nodes and peers.</li>
+        <li>The metadata catalog, shared by every service. Writes are coordinated through the leader.</li>
+        <li>Storage capacity and upload bandwidth, including bandwidth contributed by peers.</li>
+        <li>Pub-sub topics.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h2>4. System Model</h2>
+
+  <h3>4.1 Organization: <em>Hybrid</em></h3>
+  <ul>
+    <li><strong>Centralized:</strong> the API gateway is the entry point, and the metadata leader is the single writer for catalog updates. The broker and tracker are central rendezvous points.</li>
+    <li><strong>Distributed:</strong> chunk storage is spread across replicated nodes, and metadata is replicated across nodes.</li>
+    <li><strong>Decentralized:</strong> P2P chunk sharing between viewers. The tracker only knows <em>who</em> has a chunk; the bytes go peer-to-peer.</li>
+  </ul>
+  <p>This mix keeps control-plane logic simple, while the data plane (the actual video bytes) scales out.</p>
+
+  <h3>4.2 Timing: <em>Semi-synchronous (partially synchronous)</em></h3>
+  <ul>
+    <li>There is no global clock, and process speeds and message delays are unbounded in theory.</li>
+    <li>In practice we assume delays are <strong>usually</strong> bounded:
+      <ul>
+        <li>Requests time out after 2 s and are treated as lost.</li>
+        <li>The gateway sends heartbeats every 3 s and <strong>suspects</strong> a node that doesn't answer within 1 s.</li>
+        <li>Metadata followers ping the leader every 1.5 s. During an election, a replica waits 3 s for a <code>COORDINATOR</code> before starting over.</li>
+      </ul>
+    </li>
+    <li>The failure detector is <strong>unreliable</strong>: a slow node can be falsely suspected. The system recovers when that node responds again (a falsely suspected leader simply wins the next election).</li>
+  </ul>
+
+  <h3>4.3 Node-failure assumptions: <em>Crash-recovery, non-Byzantine servers</em></h3>
+  <ul>
+    <li>Servers fail by <strong>crashing</strong>. They may restart and recover state from disk (chunks on disk, each replica's <code>catalog.json</code>). A restarted metadata replica catches up by copying the catalog from the most up-to-date replica.</li>
+    <li>At most <strong>1 of 3</strong> chunk nodes fails at a time. With replication factor 2, every chunk keeps at least one live copy. Re-replication then restores the second copy, so a <em>later</em> second failure is also survived.</li>
+    <li>The metadata service tolerates the leader crashing: a new leader is elected and writes continue.</li>
+    <li><strong>Peers are unreliable and untrusted.</strong>
+      <ul>
+        <li>They can leave at any time (churn). Tracker entries expire after 30 s without a re-announce, and clients skip peers that don't answer.</li>
+        <li>They can send bad data. Every chunk is checked against the SHA-256 hash in the manifest. Bad chunks are rejected and re-fetched elsewhere, and the bad peer is ignored for the rest of that video.</li>
+      </ul>
+    </li>
+    <li>The gateway, broker, and tracker are assumed not to fail. The system degrades gracefully if the tracker or broker is down: playback still works, but there is no P2P and no notifications.</li>
+  </ul>
+
+  <h3>4.4 Link-failure assumptions: <em>Fair-loss links over TCP</em></h3>
+  <ul>
+    <li>TCP delivers messages uncorrupted, in order, and without duplicates within a connection.</li>
+    <li>Messages <strong>can be lost or delayed</strong>, and connections can drop. Timeouts detect this.
+      <ul>
+        <li>Clients fail over to another replica.</li>
+        <li>Metadata writers retry with exponential backoff (0.25 s &rarr; 2 s, up to 10 s) while an election is in progress.</li>
+      </ul>
+    </li>
+    <li>Links between the viewer and a peer are the least reliable (home networks), so a peer is always an <em>optional</em> source and a server replica is the fallback.</li>
+    <li><strong>Network partitions inside the server cluster are out of scope.</strong> A partitioned node is indistinguishable from a crashed node, and split-brain is not handled. A real system would require a majority quorum for elections and writes.</li>
+  </ul>
+
+  <h3>4.5 Storage assumptions</h3>
+  <ul>
+    <li>Each chunk node has <strong>its own local disk</strong>, with no shared storage. Chunks are fsync'd before being acknowledged.</li>
+    <li>Chunks are <strong>immutable</strong> once written, so replicas never conflict. Integrity is checked with SHA-256.</li>
+    <li>Each metadata replica persists its own catalog with atomic file writes (temp file + rename), along with a sequence number of applied writes.</li>
+    <li>Peers cache chunks in <strong>volatile, bounded</strong> memory (16 chunks, LRU), which can disappear at any time.</li>
+    <li>Disk corruption is out of scope.</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <h2>5. Architecture Diagram</h2>
+  <div class="mermaid">
+flowchart TB
+    subgraph Viewers["Viewers (clients + P2P peers)"]
+      V1[Viewer A]
+      V2[Viewer B]
+    end
+    GW[API Gateway<br/>routing, manifests,<br/>heartbeats, re-replication]
+    subgraph Meta["Metadata replicas (Bully election)"]
+      ML[Leader meta3]
+      MF[Followers meta1, meta2]
+    end
+    subgraph Storage["Chunk storage (R=2)"]
+      C1[(chunk1)]
+      C2[(chunk2)]
+      C3[(chunk3)]
+    end
+    PS[Pub-sub broker]
+    TR[Peer tracker]
+    IN[Ingest service]
+    REC[Recommendation service]
+
+    V1 -->|browse / search / play| GW
+    GW -->|reads: any replica| MF
+    GW -->|writes: SET_CHUNKS| ML
+    ML -.REPLICATE multicast.-> MF
+    ML <-.ELECTION / COORDINATOR.-> MF
+    V1 -->|GET_CHUNK| C1 & C2 & C3
+    V1 <-->|P2P GET_CHUNK| V2
+    V1 & V2 -->|ANNOUNCE / LOOKUP| TR
+    GW -->|re-replicate| Storage
+    IN -->|PUT_CHUNK| Storage
+    IN -->|ADD_TITLE| ML
+    IN -->|new-releases| PS
+    GW -->|plays| PS
+    PS -.plays, new-releases.-> REC
+    REC -->|recs.user| PS
+    PS -.notify.-> V1 & V2
+  </div>
+
+  <h2>6. Scalability, Dependability, Resource Sharing</h2>
+
+  <h3>Scalability</h3>
+  <ul>
+    <li><strong>Separate control and data planes:</strong> small metadata requests go through the gateway, while large chunk transfers go <strong>directly</strong> from storage nodes (or peers) to the client. Video bytes never bottleneck the gateway.</li>
+    <li><strong>Horizontal storage:</strong> add chunk nodes to add capacity, since placement is computed per chunk.</li>
+    <li><strong>Read scaling:</strong> reads are spread round-robin across all metadata replicas (the client prints which replica served each read). Only writes go to the leader.</li>
+    <li><strong>P2P offloading:</strong> popular titles get <em>more</em> sources as more people watch them, so load spreads naturally.</li>
+    <li><strong>Pub-sub decoupling:</strong> publishers don't need to know how many viewers exist, and the recommender is just another subscriber.</li>
+    <li><strong>Concurrency:</strong> every service uses a threaded socket server.</li>
+  </ul>
+
+  <h3>Dependability</h3>
+  <ul>
+    <li><strong>Replication:</strong> every chunk is stored on 2 nodes (<code>REPLICATION_FACTOR</code>). If a preferred node is down at upload time, ingest uses a backup node and warns if it can't reach 2 copies.</li>
+    <li><strong>Failover:</strong> if a chunk source fails, the client tries the next one.</li>
+    <li><strong>Re-replication:</strong> a chunk node that stays down 5 s has every chunk it held copied (hash-verified) from a survivor onto another live node, and the manifest is updated through the leader.</li>
+    <li><strong>Failure detection:</strong> gateway heartbeats move suspected-down nodes to the end of each manifest's source list. Followers detect a dead leader with their own heartbeats.</li>
+    <li><strong>Coordination:</strong> Bully election keeps catalog writes available after the leader crashes. A new leader first syncs from the most up-to-date replica, so acknowledged writes aren't lost.</li>
+    <li><strong>Integrity:</strong> SHA-256 checks protect against corrupted or malicious chunks.</li>
+    <li><strong>Durability:</strong> chunks are fsync'd, and catalogs use atomic writes; both survive restarts.</li>
+    <li><strong>Robustness:</strong> malformed messages get an error reply instead of crashing a handler.</li>
+    <li><strong>Observability:</strong> every socket message is logged with a timestamp and a request ID that follows the request across services.</li>
+  </ul>
+
+  <h3>Resource Sharing</h3>
+  <ul>
+    <li>Many viewers share one catalog and one pool of stored chunks through a location-transparent API; they never need to know where data lives.</li>
+    <li>Viewers share their own upload bandwidth and cached chunks with each other (P2P).</li>
+    <li>Access to the shared catalog is coordinated: a lock inside each replica, plus a single elected leader that orders all writes across replicas.</li>
+    <li>Pub-sub topics are shared channels that many subscribers read from.</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <h2>7. Implementation</h2>
+
+  <h3>Requirement checklist</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Requirement</th>
+        <th>Where it's met</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Browse, search, request media</td>
+        <td><code>BROWSE</code>, <code>SEARCH</code>, <code>PLAY</code> (<code>client.py</code> &rarr; <code>gateway.py</code> &rarr; <code>metadata.py</code>)</td>
+      </tr>
+      <tr>
+        <td>Metadata distributed across services</td>
+        <td>3 metadata replicas, each with its own catalog on its own disk</td>
+      </tr>
+      <tr>
+        <td>Chunks stored and retrieved from multiple nodes</td>
+        <td>3 chunk nodes, R=2, hash-based placement; clients fetch directly</td>
+      </tr>
+      <tr>
+        <td>Sockets / RPC / RMI</td>
+        <td>TCP sockets with JSON messages (<code>common.py</code>)</td>
+      </tr>
+      <tr>
+        <td>Marshalling / unmarshalling</td>
+        <td><code>marshal()</code> / <code>unmarshal()</code> in <code>common.py</code>; chunk bytes base64-encoded</td>
+      </tr>
+      <tr>
+        <td>Request-reply</td>
+        <td><code>send_request()</code>: one request, one reply, matched by <code>req_id</code>, with a timeout</td>
+      </tr>
+      <tr>
+        <td>Publish-subscribe</td>
+        <td><code>broker.py</code> + <code>subscribe()</code> in <code>common.py</code>; topics <code>new-releases</code>, <code>plays</code>, <code>recs.&lt;user&gt;</code></td>
+      </tr>
+      <tr>
+        <td>Group communication</td>
+        <td><code>multicast()</code> in <code>common.py</code>: the leader multicasts <code>REPLICATE</code> and <code>COORDINATOR</code> to the replica group; elections multicast <code>ELECTION</code> and <code>STATE</code></td>
+      </tr>
+      <tr>
+        <td>P2P</td>
+        <td><code>tracker.py</code> + <code>client.py play --seed</code>; peers serve chunks from their cache</td>
+      </tr>
+      <tr>
+        <td>Leader election</td>
+        <td>Bully algorithm in <code>metadata.py</code></td>
+      </tr>
+      <tr>
+        <td>Coordinated access to shared metadata</td>
+        <td>Only the leader accepts writes; it orders them with sequence numbers</td>
+      </tr>
+      <tr>
+        <td>Replication + fault tolerance</td>
+        <td>Chunk R=2, client failover, re-replication, metadata replication, write retry with backoff</td>
+      </tr>
+      <tr>
+        <td>Message logging with timestamps</td>
+        <td>Every SEND/RECV/FAIL/MCAST goes to stdout and <code>logs/&lt;process&gt;.log</code> as <code>HH:MM:SS.mmm</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Message types</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Service</th>
+        <th>Types</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Gateway</td>
+        <td><code>HEALTH</code>, <code>BROWSE</code>, <code>SEARCH</code>, <code>PLAY</code></td>
+      </tr>
+      <tr>
+        <td>Metadata replica</td>
+        <td><code>HEALTH</code>, <code>LIST</code>, <code>SEARCH</code>, <code>GET_MANIFEST</code>, <code>ADD_TITLE</code>*, <code>SET_CHUNKS</code>*, <code>REPLICATE</code>, <code>ELECTION</code>, <code>COORDINATOR</code>, <code>STATE</code>, <code>SYNC</code> (* leader only)</td>
+      </tr>
+      <tr>
+        <td>Chunk node / seeding peer</td>
+        <td><code>HEALTH</code>, <code>PUT_CHUNK</code>, <code>GET_CHUNK</code></td>
+      </tr>
+      <tr>
+        <td>Broker</td>
+        <td><code>HEALTH</code>, <code>SUBSCRIBE</code> (connection stays open for <code>NOTIFY</code> pushes), <code>PUBLISH</code></td>
+      </tr>
+      <tr>
+        <td>Tracker</td>
+        <td><code>HEALTH</code>, <code>ANNOUNCE</code>, <code>LEAVE</code>, <code>LOOKUP</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Playback flow</h3>
+  <ol>
+    <li>The client sends <code>PLAY v001</code> (with its user name) to the gateway.</li>
+    <li>The gateway sends <code>GET_MANIFEST</code> to a metadata replica (round-robin, failing over to the next replica).</li>
+    <li>The gateway orders each chunk's sources so live nodes come first and returns the manifest. In the background, it publishes a <code>plays</code> event.</li>
+    <li>The client asks the tracker which peers have the chunks.</li>
+    <li>The client sends <code>GET_CHUNK</code> to peers first, then storage nodes, verifying each hash and failing over as needed.</li>
+    <li>The recommender receives the <code>plays</code> event and publishes <code>recs.&lt;user&gt;</code>. The broker pushes it to the viewer's open subscription.</li>
+  </ol>
+
+  <h3>Write flow (e.g. a new upload)</h3>
+  <ol>
+    <li>Ingest stores each chunk on 2 nodes (<code>PUT_CHUNK</code>).</li>
+    <li>Ingest sends <code>ADD_TITLE</code> to the leader. A follower would reply <code>not leader</code> with a hint to the real leader. If there is no leader, ingest backs off and retries.</li>
+    <li>The leader assigns sequence number <em>n</em>, saves the write, and multicasts <code>REPLICATE{seq=n}</code> to the group.</li>
+    <li>Each follower applies the write if <em>n</em> is the next sequence number. If it detects a gap, it pulls a full <code>SYNC</code> instead.</li>
+    <li>Ingest publishes the title to <code>new-releases</code>.</li>
+  </ol>
+
+  <h3>Bully election</h3>
+  <ol>
+    <li>A replica that starts up, or sees the leader stop answering, sends <code>ELECTION</code> to every higher-priority replica (<code>meta1</code> &lt; <code>meta2</code> &lt; <code>meta3</code>).</li>
+    <li>Any higher replica that replies "ok" takes over the election. The starter then waits for a <code>COORDINATOR</code>.</li>
+    <li>A replica with no live higher replica wins. It asks the group for their <code>STATE</code> (sequence numbers), copies the catalog from the most up-to-date one if it is behind, and then multicasts <code>COORDINATOR</code>.</li>
+    <li>A restarted higher replica bullies its way back to leader the same way.</li>
+  </ol>
+
+  <h3>Known limitations</h3>
+  <ul>
+    <li>There is no majority quorum, so a network partition could produce two leaders.</li>
+    <li>A write is acknowledged once it is replicated to the <em>reachable</em> followers.</li>
+    <li>The gateway, broker, and tracker are single instances.</li>
+    <li>Viewing history in the recommender is kept in memory only.</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <h2>8. Explanation of Sockets, RPC, or RMI Choice</h2>
+  <p>The project requirements dictate selecting at least one primary communication mechanism between Sockets, RPC, or RMI. StreamSim implements raw <strong>TCP Sockets</strong>. The trade-offs and rationale are detailed below:</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Evaluation Criteria</th>
+        <th>TCP Sockets (Chosen)</th>
+        <th>RPC (e.g., gRPC)</th>
+        <th>RMI (e.g., Java RMI / Pyro)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Architectural Coupling</strong></td>
+        <td><strong>Low:</strong> Clean separation between wire representation and runtime implementation. Zero IDL compilation.</td>
+        <td><strong>Medium:</strong> Requires strict Interface Definition Language (Proto) compilation stubs.</td>
+        <td><strong>High:</strong> Highly coupled to specific language runtime, class definitions, and object life cycles.</td>
+      </tr>
+      <tr>
+        <td><strong>Streaming &amp; Push Connections</strong></td>
+        <td><strong>Native &amp; Efficient:</strong> Single persistent socket held open for asynchronous pushes.</td>
+        <td><strong>Complex:</strong> Requires HTTP/2 Bidirectional Streaming channels with keepalive configuration.</td>
+        <td><strong>Cumbersome:</strong> Requires distributed reverse callbacks and server-exported client remote stubs.</td>
+      </tr>
+      <tr>
+        <td><strong>Peer-to-Peer Data Plane</strong></td>
+        <td><strong>Ideal:</strong> Ephemeral viewer clients dynamically bind to port 0 and act as ad-hoc socket servers.</td>
+        <td><strong>Overhead:</strong> Substantial client/server infrastructure overhead on transient viewer nodes.</td>
+        <td><strong>Impractical:</strong> RMI security policies and stub distributions impede dynamic peer churn.</td>
+      </tr>
+      <tr>
+        <td><strong>Wire Transparency</strong></td>
+        <td><strong>Human-Readable:</strong> JSON wire packets inspectable via Wireshark, netcat, or plain log streams.</td>
+        <td><strong>Opaque:</strong> Binary protocol buffers require schema decoders for runtime packet inspection.</td>
+        <td><strong>Opaque:</strong> Serialized language byte-streams.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Technical Justification for StreamSim:</h3>
+  <ul>
+    <li><strong>Persistent Push Connections for Pub-Sub:</strong> Standard RPC models center around client-initiated request-reply semantics. Implementing server-push notifications over standard RPC requires awkward client polling or complex bidirectional channels. With raw TCP sockets, when a viewer issues a <code>SUBSCRIBE</code> command, the broker leaves the socket connection open, allowing asynchronous <code>NOTIFY</code> frames to be pushed down the socket the instant an event is published.</li>
+    <li><strong>Dynamic P2P Swarming on Ephemeral Ports:</strong> StreamSim viewers act as both consumers and seeders (BitTorrent-style). After watching a video, a client starts a local server on port 0 (<code>(HOST, 0)</code>), registers with the tracker, and serves chunks to other peers. Socket servers require zero code generation or stub deployment, making them ideal for dynamic peer-to-peer distribution.</li>
+    <li><strong>Explicit Failure Detection:</strong> Direct socket connection attempts (<code>socket.create_connection</code>) provide immediate failure feedback (<code>ConnectionRefusedError</code> or socket timeout), which directly powers the failure detection in the Bully election and gateway chunk re-replication.</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <h2>9. Message Logs and Screenshots Showing Communication</h2>
+  <p>Below are verified, timestamped logs and screenshot placeholders demonstrating each required communication mechanism in StreamSim. Every log entry displays the exact timestamp (<code>HH:MM:SS.mmm</code>), process name, message direction (<code>SEND -&gt;</code>, <code>RECV &lt;-</code>, <code>MCAST</code>, <code>FAIL xx</code>), peer name, unique correlation ID (<code>id</code>), and payload.</p>
+
+  <h3>9.1 Request-Reply Interaction</h3>
+  <pre class="log-trace"><code>20:15:02.104 client-alice SEND -> peer=gateway  id=9b3a1c04 {"type": "SEARCH", "payload": {"query": "sci-fi"}}
+20:15:02.105 gateway      RECV &lt;- peer=client-alice id=9b3a1c04 {"type": "SEARCH", "payload": {"query": "sci-fi"}}
+20:15:02.105 gateway      SEND -> peer=meta2    id=9b3a1c04 {"type": "SEARCH", "payload": {"query": "sci-fi"}}
+20:15:02.106 meta2        RECV &lt;- peer=gateway  id=9b3a1c04 {"type": "SEARCH", "payload": {"query": "sci-fi"}}
+20:15:02.107 meta2        SEND -> peer=gateway  id=9b3a1c04 {"status": "ok", "data": {"replica": "meta2", "titles": [{"video_id": "v001", "title": "Orbit Nine"}, {"video_id": "v004", "title": "Starlight Rangers"}]}}
+20:15:02.107 gateway      RECV &lt;- peer=meta2    id=9b3a1c04 {"status": "ok", "data": {"replica": "meta2", "titles": [...]}}
+20:15:02.108 gateway      SEND -> peer=client-alice id=9b3a1c04 {"status": "ok", "data": {"replica": "meta2", "titles": [...]}}
+20:15:02.109 client-alice RECV &lt;- peer=gateway  id=9b3a1c04 {"status": "ok", "data": {"replica": "meta2", "titles": [...]}}</code></pre>
+
+  <h3>9.2 Group Multicast Replication</h3>
+  <pre class="log-trace"><code>20:15:10.450 meta3        RECV &lt;- peer=ingest   id=c7104e88 {"type": "ADD_TITLE", "payload": {"entry": {"video_id": "v005", "title": "Neon Tide"}}}
+20:15:10.452 meta3        MCAST   group=['meta1', 'meta2'] id=c7104e88 type=REPLICATE
+20:15:10.453 meta3        SEND -> peer=meta1    id=c7104e88 {"type": "REPLICATE", "payload": {"from": "meta3", "seq": 5, "entry": {"video_id": "v005"}}}
+20:15:10.453 meta3        SEND -> peer=meta2    id=c7104e88 {"type": "REPLICATE", "payload": {"from": "meta3", "seq": 5, "entry": {"video_id": "v005"}}}
+20:15:10.455 meta1        RECV &lt;- peer=meta3    id=c7104e88 {"type": "REPLICATE", "payload": {"seq": 5}}
+20:15:10.455 meta2        RECV &lt;- peer=meta3    id=c7104e88 {"type": "REPLICATE", "payload": {"seq": 5}}
+20:15:10.456 meta1        SEND -> peer=meta3    id=c7104e88 {"status": "ok", "data": {"seq": 5}}
+20:15:10.456 meta2        SEND -> peer=meta3    id=c7104e88 {"status": "ok", "data": {"seq": 5}}
+20:15:10.457 meta3        MCAST   id=c7104e88 delivered to 2/2 ['meta1', 'meta2']
+20:15:10.458 meta3        SEND -> peer=ingest   id=c7104e88 {"status": "ok", "data": {"video_id": "v005", "seq": 5, "replicated_to": ["meta1", "meta2"]}}</code></pre>
+
+  <h3>9.3 Publish-Subscribe Multi-Subscriber Delivery</h3>
+  <pre class="log-trace"><code>20:15:11.201 ingest       SEND -> peer=broker   id=e401b223 {"type": "PUBLISH", "payload": {"topic": "new-releases", "message": {"video_id": "v005", "title": "Neon Tide"}}}
+20:15:11.202 broker       RECV &lt;- peer=ingest   id=e401b223 {"type": "PUBLISH", "payload": {"topic": "new-releases", "message": {"video_id": "v005"}}}
+20:15:11.202 broker       SEND -> peer=client-alice id=e401b223 type=NOTIFY topic=new-releases msg_id=5 message={"title": "Neon Tide"}
+20:15:11.203 broker       SEND -> peer=recommender  id=e401b223 type=NOTIFY topic=new-releases msg_id=5 message={"title": "Neon Tide"}
+20:15:11.203 broker       SEND -> peer=ingest   id=e401b223 {"status": "ok", "data": {"topic": "new-releases", "msg_id": 5, "delivered": 2}}
+20:15:11.204 client-alice RECV &lt;- peer=broker   id=e401b223 type=NOTIFY topic=new-releases msg_id=5 message={"title": "Neon Tide"}
+20:15:11.204 recommender  RECV &lt;- peer=broker   id=e401b223 type=NOTIFY topic=new-releases msg_id=5 message={"title": "Neon Tide"}</code></pre>
+
+  <h3>9.4 P2P Integrity Check &amp; Malicious Peer Quarantine</h3>
+  <pre class="log-trace"><code>20:16:30.112 client-carol SEND -> peer=peer-mallory id=3f110a76 {"type": "GET_CHUNK", "payload": {"chunk_id": "v002-c1"}}
+20:16:30.114 client-carol RECV &lt;- peer=peer-mallory id=3f110a76 {"status": "ok", "data": {"chunk_id": "v002-c1", "data": "&lt;344 b64 chars&gt;"}}
+20:16:30.115 client-carol BADHASH chunk=v002-c1 from peer-mallory
+20:16:30.115 client-carol BAN     peer-mallory sent bad data; ignoring it for the rest of this video
+20:16:30.116 client-carol SEND -> peer=chunk1       id=3f110a76 {"type": "GET_CHUNK", "payload": {"chunk_id": "v002-c1"}}
+20:16:30.118 client-carol RECV &lt;- peer=chunk1       id=3f110a76 {"status": "ok", "data": {"chunk_id": "v002-c1", "data": "&lt;344 b64 chars&gt;"}}</code></pre>
+
+  <h2>10. Team Contribution Table</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">Team Member</th>
+        <th>Contributions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Rey Sioson</strong></td>
+        <td><strong>Team Lead:</strong> Project coordination and system architecture review. Implemented the <strong>Group Communication Component</strong> (<code>multicast()</code>), leader election (Bully algorithm in <code>metadata.py</code>), and leader-directed write replication (<code>REPLICATE</code>) across distributed replica nodes.</td>
+      </tr>
+      <tr>
+        <td><strong>Reuben Cherian</strong></td>
+        <td><strong>Wrote README &amp; System Report:</strong> Designed communication model and message framing protocols. Implemented message <strong>Marshalling &amp; Unmarshalling</strong> (<code>marshal()</code> and <code>unmarshal()</code> in <code>common.py</code>) with JSON serialization and Base64 binary chunk encoding. Authored <code>REPORT.md</code> / <code>REPORT.html</code> including the Sockets vs. RPC/RMI architectural trade-off analysis.</td>
+      </tr>
+      <tr>
+        <td><strong>Jacob Sabraw</strong></td>
+        <td><strong>Architecture Diagram &amp; Pub-Sub:</strong> Designed system architecture diagrams. Implemented the <strong>Publish-Subscribe Component</strong> (<code>broker.py</code>) supporting long-lived push streaming connections, topic filtering (<code>new-releases</code>, <code>plays</code>, <code>recs.&lt;user&gt;</code>), and multi-subscriber event delivery. Developed the Recommendation Service (<code>recommender.py</code>).</td>
+      </tr>
+      <tr>
+        <td><strong>Viktor Silaiev</strong></td>
+        <td><strong>Architecture Diagram &amp; Sockets:</strong> Designed architecture diagrams and timing models. Implemented the <strong>TCP Sockets Communication Layer</strong> (<code>make_server</code>, <code>_Handler</code>, <code>_Server</code> in <code>common.py</code>). Implemented the <strong>Request-Reply Interaction</strong> primitive (<code>send_request()</code>) with timeout handling, connection pooling, and distributed request correlation IDs (<code>req_id</code>).</td>
+      </tr>
+      <tr>
+        <td><strong>Ariel Winkler</strong></td>
+        <td><strong>Architecture Diagram &amp; P2P / Dependability:</strong> Designed architecture diagrams and data redundancy model (<em>R = 2</em>). Implemented the <strong>Peer Tracker</strong> (<code>tracker.py</code>) for P2P chunk distribution, viewer chunk seeding, and SHA-256 cryptographic chunk hash integrity verification with malicious peer quarantine. Developed automated chunk re-replication in <code>gateway.py</code>.</td>
+      </tr>
+      <tr>
+        <td><strong>Jayden Woodall</strong></td>
+        <td><strong>Video Demonstration:</strong> Scripted, recorded, and edited the milestone demonstration video demonstrating: synchronous request-reply communication, pub-sub notifications, group multicast communication, and message formats before and after marshalling. Conducted demo test executions.</td>
+      </tr>
+      <tr>
+        <td><strong>Killian Nguyen</strong></td>
+        <td><strong>Wrote README &amp; Message Logging:</strong> Co-authored and expanded <code>README.md</code> (required software, dependencies, step-by-step service startup, demo execution, and test reproduction). Implemented structured <strong>Message Logging with Timestamps</strong> (<code>HH:MM:SS.mmm</code>), logging levels, and correlation ID tracing across all services. Validated test cases 1 through 6 (<code>run_all.py</code>).</td>
+      </tr>
+    </tbody>
+  </table>
+
+</body>
+</html>

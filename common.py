@@ -17,7 +17,7 @@ import uuid
 import threading
 import time
 
-from config import REQUEST_TIMEOUT
+from config import METADATA_REPLICAS, REQUEST_TIMEOUT, WRITE_RETRY_SECONDS
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_DIR = os.path.join(BASE_DIR, "logs")    # message logs go here
@@ -254,14 +254,22 @@ class _Handler(socketserver.StreamRequestHandler):
         quiet = mtype == "HEALTH"  # don't log heartbeats
         if not quiet:
             log_msg(srv.logger, "RECV <-", sender, req_id, type=mtype, payload=msg.get("payload"))
+        stream_fn = None
         try:
-            status, data = srv.route(mtype, msg.get("payload") or {}, req_id)
+            res = srv.route(mtype, msg.get("payload") or {}, req_id)
+            if isinstance(res, tuple) and len(res) == 3:
+                status, data, stream_fn = res
+            else:
+                status, data = res
         except Exception as e:  # a bad request shouldn't crash the whole server
             status, data = "error", {"error": f"{type(e).__name__}: {e}"}
         if not quiet:
             log_msg(srv.logger, "SEND ->", sender, req_id, status=status, data=data)
         reply = {"req_id": req_id, "status": status, "data": data}
         self.wfile.write((json.dumps(reply) + "\n").encode())
+        self.wfile.flush()
+        if stream_fn and status == "ok":
+            stream_fn(self.rfile, self.wfile)
 
 
 # Threaded server so each connection gets its own thread (handles many clients at once)
