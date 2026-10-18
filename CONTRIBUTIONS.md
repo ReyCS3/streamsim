@@ -2,10 +2,10 @@
 
 | Team Member | Contributions |
 | --- | --- |
-| Rey Sioson | Team Lead |
-| Reuben Cherian | Wrote README|
-| Jacob Sabraw | Architecture Diagram|
-| Viktor Silaiev |Architecture Diagram |
-| Ariel Winkler | Architecture Diagram|
-| Jayden Woodall | Video Demonstration |
-| Killian Nguyen | Wrote README |
+| **Rey Sioson** | **Team Lead:** Project coordination and system architecture review. Implemented the **Group Communication Component** (`multicast()`), leader election (Bully algorithm in `metadata.py`), and leader-directed write replication (`REPLICATE`) across distributed replica nodes. |
+| **Reuben Cherian** | **Wrote README & System Report:** Designed communication model and message framing protocols. Implemented message **Marshalling & Unmarshalling** (`marshal()` and `unmarshal()` in `common.py`) with JSON serialization and Base64 binary chunk encoding. Authored `REPORT.md` / `REPORT.html` including the Sockets vs. RPC/RMI architectural trade-off analysis. |
+| **Jacob Sabraw** | **Architecture Diagram & Pub-Sub:** Designed system architecture diagrams. Implemented the **Publish-Subscribe Component** (`broker.py`) supporting long-lived push streaming connections, topic filtering (`new-releases`, `plays`, `recs.<user>`), and multi-subscriber event delivery. Developed the Recommendation Service (`recommender.py`). |
+| **Viktor Silaiev** | **Architecture Diagram & Sockets:** Designed architecture diagrams and timing models. Implemented the **TCP Sockets Communication Layer** (`make_server`, `_Handler`, `_Server` in `common.py`). Implemented the **Request-Reply Interaction** primitive (`send_request()`) with timeout handling, connection pooling, and distributed request correlation IDs (`req_id`). |
+| **Ariel Winkler** | **Architecture Diagram & P2P / Dependability:** Designed architecture diagrams and data redundancy model ($R=2$). Implemented the **Peer Tracker** (`tracker.py`) for P2P chunk distribution, viewer chunk seeding, and SHA-256 cryptographic chunk hash integrity verification with malicious peer quarantine. Developed automated chunk re-replication in `gateway.py`. |
+| **Jayden Woodall** | **Video Demonstration:** Scripted, recorded, and edited the milestone demonstration video demonstrating: synchronous request-reply communication, pub-sub notifications, group multicast communication, and message formats before and after marshalling. Conducted demo test executions. |
+| **Killian Nguyen** | **Wrote README & Message Logging:** Co-authored and expanded `README.md` (required software, dependencies, step-by-step service startup, demo execution, and test reproduction). Implemented structured **Message Logging with Timestamps** (`HH:MM:SS.mmm`), logging levels, and correlation ID tracing across all services. Validated test cases 1 through 6 (`run_all.py`). |
