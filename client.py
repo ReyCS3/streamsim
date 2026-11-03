@@ -63,6 +63,122 @@ def search(query):
     else:
         print(f"  [{USER}] search failed: {resp['data']['error'] if resp else 'gateway unavailable'}")
 
+# MILESTONE 3: RING OVERLAY
+def get_overlay_members():
+    """
+    Retrieve active peer membership from the tracker.
+
+    The tracker provides membership information, but does
+    not perform resource discovery for overlay lookups.
+    """
+    response = send_request(
+        log,
+        NAME,
+        "tracker",
+        TRACKER,
+        "PEERS",
+        {}
+    )
+
+    if not response or response["status"] != "ok":
+        return {}
+
+    return response["data"].get("peers", {})
+
+
+def ring_successors(current_peer, members):
+    """
+    Return the other peers in clockwise ring order.
+
+    Peer names are sorted to create a deterministic ring.
+    For example:
+
+    peer-alice -> peer-bob -> peer-carol -> peer-dave
+                       ^                       |
+                       |_______________________|
+
+    The current peer is excluded from its successor list.
+    """
+    names = sorted(members.keys())
+
+    if current_peer not in names:
+        return []
+
+    position = names.index(current_peer)
+
+    return [
+        names[(position + offset) % len(names)]
+        for offset in range(1, len(names))
+    ]
+
+
+def overlay_lookup(chunk_id):
+    """
+    Discover a video chunk by sending a lookup into the
+    peer overlay.
+
+    The tracker is consulted only to find an entry peer.
+    The lookup itself travels between peers.
+    """
+    members = get_overlay_members()
+
+    if not members:
+        log.info(
+            f"OVERLAY EMPTY chunk={chunk_id}"
+        )
+        return []
+
+    entry_peer = sorted(members.keys())[0]
+    entry_addr = tuple(members[entry_peer]["addr"])
+
+    log.info(
+        f"OVERLAY START chunk={chunk_id} "
+        f"entry={entry_peer}"
+    )
+
+    response = send_request(
+        log,
+        NAME,
+        entry_peer,
+        entry_addr,
+        "OVERLAY_LOOKUP",
+        {
+            "chunk_id": chunk_id,
+            "visited": []
+        }
+    )
+
+    if not response or response["status"] != "ok":
+        log.info(
+            f"OVERLAY MISS chunk={chunk_id}"
+        )
+        return []
+
+    source = response["data"].get("source")
+
+    if not source:
+        log.info(
+            f"OVERLAY NOT_FOUND chunk={chunk_id}"
+        )
+        return []
+
+    log.info(
+        f"OVERLAY FOUND chunk={chunk_id} "
+        f"owner={source['node']} "
+        f"path={response['data'].get('path', [])}"
+    )
+
+    return [dict(source, peer=True)]
+
+
+def lookup_peers_overlay(chunk_ids):
+    """
+    Perform distributed resource discovery for each chunk.
+    """
+    return {
+        chunk_id: overlay_lookup(chunk_id)
+        for chunk_id in chunk_ids
+    }
 
 # Ask the tracker which peers have these chunks. Peers are optional: if the tracker
 # is down we just use the storage nodes.
@@ -73,8 +189,10 @@ def lookup_peers(chunk_ids):
         return {}
     return {cid: [dict(s, peer=True) for s in srcs] for cid, srcs in r["data"]["sources"].items()}
 
+# Milestone 3: Added optional overlay mode for P2P resource discovery.
+# Original def play(video_id, seed=0, corrupt=False): > playback behavior remains unchanged when overlay=False.
+def play(video_id, seed=0, corrupt=False, overlay=False):
 
-def play(video_id, seed=0, corrupt=False):
     # Step 1: ask the gateway for the manifest (chunk list + where each chunk lives)
     resp = call("PLAY", {"video_id": video_id, "user": USER})
     if not resp or resp["status"] != "ok":
@@ -84,7 +202,25 @@ def play(video_id, seed=0, corrupt=False):
 
     video = resp["data"]
     # Step 2: ask the tracker which peers already have these chunks
-    peer_sources = lookup_peers([c["chunk_id"] for c in video["chunks"]])
+    
+    ### Milestone 3: Added optional P2P overlay lookup for video chunks.
+    ### Keeps the original tracker-based lookup when overlay mode is disabled.
+    chunk_ids = [
+        c["chunk_id"]
+        for c in video["chunks"]
+    ]
+
+    if overlay:
+        log.info(
+            f"MILESTONE 3: overlay playback "
+            f"user={USER} video={video_id}"
+        )
+        peer_sources = lookup_peers_overlay(chunk_ids)
+    else:
+        # Original Milestone 2 behavior remains unchanged.
+        peer_sources = lookup_peers(chunk_ids)
+    ### old line: peer_sources = lookup_peers([c["chunk_id"] for c in video["chunks"]]) > replaced with line 208 to 221
+    
     stats = {"peers": 0, "servers": 0, "failovers": 0, "rejected": 0}
     banned = set()  # peers that sent bad data or didn't answer; skip them for this video
 
@@ -145,6 +281,120 @@ def run_seeder(seconds, corrupt):
                 data = bytes(b ^ 0xFF for b in data)
             return "ok", {"node": peer_name, "chunk_id": p["chunk_id"],
                           "data": base64.b64encode(data).decode()}
+                # Milestone 3: Forward resource lookup through the ring.
+        if mtype == "OVERLAY_LOOKUP":
+            chunk_id = p.get("chunk_id")
+            visited = list(p.get("visited", []))
+
+            if not chunk_id:
+                return "error", {
+                    "error": "missing chunk_id"
+                }
+
+            # Prevent routing loops.
+            if peer_name in visited:
+                return "ok", {
+                    "source": None,
+                    "path": visited
+                }
+
+            visited.append(peer_name)
+
+            log.info(
+                f"OVERLAY VISIT peer={peer_name} "
+                f"chunk={chunk_id} "
+                f"path={visited}"
+            )
+
+            # Check this peer's local video-chunk cache.
+            if chunk_id in cache:
+                log.info(
+                    f"OVERLAY HIT peer={peer_name} "
+                    f"chunk={chunk_id}"
+                )
+
+                return "ok", {
+                    "source": {
+                        "node": peer_name,
+                        "addr": addr
+                    },
+                    "path": visited
+                }
+
+            # Find the next available peer in the ring.
+            members = get_overlay_members()
+
+            # If the tracker is temporarily unavailable,
+            # the lookup safely ends and playback can
+            # fall back to the chunk storage servers.
+            if not members:
+                return "ok", {
+                    "source": None,
+                    "path": visited
+                }
+
+            successors = ring_successors(
+                peer_name,
+                members
+            )
+
+            for successor in successors:
+                if successor in visited:
+                    continue
+
+                successor_addr = tuple(
+                    members[successor]["addr"]
+                )
+
+                log.info(
+                    f"OVERLAY FORWARD "
+                    f"{peer_name} -> {successor} "
+                    f"chunk={chunk_id}"
+                )
+
+                response = send_request(
+                    log,
+                    NAME,
+                    successor,
+                    successor_addr,
+                    "OVERLAY_LOOKUP",
+                    {
+                        "chunk_id": chunk_id,
+                        "visited": visited
+                    }
+                )
+
+                if response and response["status"] == "ok":
+                    result = response["data"]
+
+                    if result.get("source"):
+                        return "ok", result
+
+                    # Preserve traversal information.
+                    for name in result.get("path", []):
+                        if name not in visited:
+                            visited.append(name)
+
+                else:
+                    log.info(
+                        f"OVERLAY FAILURE "
+                        f"peer={successor} "
+                        f"trying another successor"
+                    )
+
+                    if successor not in visited:
+                        visited.append(successor)
+
+            log.info(
+                f"OVERLAY NOT_FOUND "
+                f"peer={peer_name} "
+                f"chunk={chunk_id}"
+            )
+
+            return "ok", {
+                "source": None,
+                "path": visited
+            }
         return "error", {"error": f"unknown type {mtype}"}
 
     srv = make_server((HOST, 0), NAME, route)  # port 0 = let the OS pick a free port
@@ -194,6 +444,14 @@ def main():
     pl.add_argument("video_id")
     pl.add_argument("--seed", type=float, default=0, help="stay online as a P2P peer for N seconds")
     pl.add_argument("--corrupt", action="store_true", help="(testing) serve damaged chunks as a peer")
+
+    # Milestone 3: Optional ring overlay for P2P resource discovery.
+    pl.add_argument(
+        "--overlay",
+        action="store_true",
+        help="discover video chunks through the P2P ring"
+    )
+    
     li = sub.add_parser("listen")
     li.add_argument("--for", dest="duration", type=float, default=None, help="seconds (default: forever)")
     sub.add_parser("demo")
@@ -208,8 +466,17 @@ def main():
         browse()
     elif cmd == "search":
         search(args.query)
+    # old line     
+    # elif cmd == "play":
+    #    play(args.video_id, args.seed, args.corrupt)
+    # Update for Milestone 3
     elif cmd == "play":
-        play(args.video_id, args.seed, args.corrupt)
+        play(
+            args.video_id,
+            args.seed,
+            args.corrupt,
+            args.overlay
+        )    
     elif cmd == "listen":
         listen(args.duration)
     elif cmd == "demo":
