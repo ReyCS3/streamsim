@@ -217,7 +217,7 @@ def play(video_id, seed=0, corrupt=False, overlay=False):
         )
         peer_sources = lookup_peers_overlay(chunk_ids)
     else:
-        # Original Milestone 2 behavior remains unchanged.
+        ## Original Milestone 2 behavior remains unchanged.
         peer_sources = lookup_peers(chunk_ids)
     ### old line: peer_sources = lookup_peers([c["chunk_id"] for c in video["chunks"]]) > replaced with line 208 to 221
     
