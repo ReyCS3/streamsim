@@ -1,6 +1,6 @@
 # Peer tracker (P2P): remembers which viewer peers hold which chunks.
 # The tracker never sees the chunk bytes, only who has what.
-#
+###
 
 # Handles: HEALTH, ANNOUNCE, LEAVE, LOOKUP
 
