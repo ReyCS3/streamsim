@@ -32,6 +32,24 @@ def route(mtype, p, req_id):
         with lock:
             return "ok", {"peers": {n: len(e["chunks"]) for n, e in peers.items()}}
 
+    # Milestone 3: Return active peer membership for overlay routing.
+    # The tracker is used for bootstrap and membership discovery only.
+    # Resource lookups in overlay mode are forwarded between peers.
+    if mtype == "PEERS":
+        with lock:
+            members = {
+                name: {
+                    "addr": list(entry["addr"]),
+                    "chunks": len(entry["chunks"])
+                }
+                for name, entry in sorted(peers.items())
+            }
+
+        log.info(
+            f"OVERLAY MEMBERSHIP: {list(members.keys())}"
+        )
+
+        return "ok", {"peers": members}
     
     if mtype == "ANNOUNCE":
         name, now = p["peer"], time.time()
