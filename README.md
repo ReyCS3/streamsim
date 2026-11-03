@@ -124,3 +124,109 @@ Output:
 - `data/` holds the chunks and one `catalog.json` per metadata replica.
 
 Design writeup: `DESIGN.md`.
+
+
+---
+
+## Milestone 3: P2P Ring Integration
+
+### Overview
+
+Milestone 3 adds a peer-to-peer ring overlay to StreamSim.
+The overlay allows viewers to discover video chunks through
+other peers while keeping the original streaming services.
+
+The existing API gateway, metadata replicas, storage nodes,
+and publish-subscribe broker remain unchanged.
+
+### Overlay Network
+
+Peers are organized alphabetically into a logical ring.
+
+Example:
+
+peer-alice -> peer-bob -> peer-carol -> peer-dave
+     ^                                      |
+     |______________________________________|
+
+The tracker maintains peer membership. Video chunk lookup
+requests are forwarded between peers instead of being
+resolved by the tracker.
+
+### Peer Joining and Leaving
+
+- ANNOUNCE: Registers a peer with the tracker.
+- PEERS: Retrieves the active peer membership list.
+- LEAVE: Removes a peer from the network.
+- OVERLAY_LOOKUP: Searches for a chunk through other peers.
+
+Peers that become unreachable can be skipped during lookup.
+Inactive peer registrations also expire after the configured
+timeout.
+
+### Resource Discovery
+
+1. The viewer requests the video manifest from the gateway.
+2. The viewer obtains an entry peer from the tracker.
+3. The entry peer checks its local chunk cache.
+4. If the chunk is unavailable, the request is forwarded.
+5. The process continues until a peer finds the chunk.
+6. The viewer downloads the chunk directly from that peer.
+7. SHA-256 verifies the downloaded data.
+8. Storage nodes provide fallback if lookup fails.
+
+### Requirements
+
+- Python 3.8 or newer
+- No additional Python dependencies
+
+### Running the Demonstration
+
+First, start the original StreamSim services:
+
+    python run_all.py --keep
+
+Open another terminal and run:
+
+    python milestone3_demo.py
+
+The demonstration includes:
+
+- Starting multiple peers
+- A fourth peer joining
+- Lookup requests routed through the ring
+- Video chunks discovered through peers
+- A peer leaving the network
+- Playback after a peer leaves
+
+### Manual Overlay Playback
+
+To enable overlay discovery:
+
+    python client.py --user eve play v002 --overlay
+
+To use the original tracker-based lookup:
+
+    python client.py --user eve play v002
+
+### Logging
+
+Overlay events are recorded in the logs/ directory.
+
+Important events include:
+
+- OVERLAY START
+- OVERLAY VISIT
+- OVERLAY FORWARD
+- OVERLAY HIT
+- OVERLAY FOUND
+- OVERLAY FAILURE
+- OVERLAY NOT_FOUND
+
+### Compatibility
+
+Milestone 3 introduces optional overlay functionality.
+
+All existing Milestone 1 and 2 commands remain available,
+including normal playback, P2P sharing, leader election,
+and storage-node failure recovery.
